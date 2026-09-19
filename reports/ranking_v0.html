@@ -1,0 +1,111 @@
+<title>Grandeza deportiva argentina</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#f5f8fc; --surface:#ffffff; --ink:#13202f; --muted:#56687c; --rule:#d9e2ec; --rule-strong:#13202f;
+  --accent:#1c5cab; --heat-lo:#dbe9fa; --heat-hi:#14498c; --on-hot:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0e141b; --surface:#151d27; --ink:#e7eef6; --muted:#93a4b7; --rule:#26323f; --rule-strong:#e7eef6;
+    --accent:#86b6ef; --heat-lo:#1a2a3d; --heat-hi:#9ec5f4; --on-hot:#0e141b;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0e141b; --surface:#151d27; --ink:#e7eef6; --muted:#93a4b7; --rule:#26323f; --rule-strong:#e7eef6;
+  --accent:#86b6ef; --heat-lo:#1a2a3d; --heat-hi:#9ec5f4; --on-hot:#0e141b;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.55;padding-inline:20px;padding-block:40px 80px}
+main{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+header,section{display:flex;flex-direction:column;gap:14px}
+h1,h2,.eyebrow,table th{font-family:"Archivo Narrow","Arial Narrow",sans-serif}
+.eyebrow{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.08;margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:24px;line-height:1.15;margin:0;text-wrap:balance;font-weight:700}
+p{margin:0;max-width:66ch}
+.lead{font-size:18px}
+.nota{color:var(--muted);font-size:14px}
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px}
+table{border-collapse:separate;border-spacing:2px;font-variant-numeric:tabular-nums;width:100%}
+th{font-weight:600;text-align:left;white-space:nowrap;font-size:14px}
+thead th{color:var(--muted);text-align:center;font-size:13px;padding:4px 6px;vertical-align:bottom;white-space:normal}
+tbody th{padding-right:14px;font-size:15px}
+.mapa td{width:52px;min-width:40px;height:34px;text-align:center;font-size:13px;border-radius:3px}
+.mapa td.heat{background:color-mix(in oklab,var(--heat-hi) calc(var(--v)*100%),var(--heat-lo));color:var(--ink);cursor:default}
+.mapa td.hot{color:var(--on-hot);font-weight:600}
+.mapa td.cero{background:transparent}
+.mapa td.heat:hover{outline:2px solid var(--ink);outline-offset:-1px}
+tr.corte>*{border-top:2px solid var(--rule-strong)}
+.mapa tr.sep td{height:2px;min-width:0;padding:0;border-radius:0;background:var(--rule-strong)}
+.datos{border-spacing:0}
+.datos td,.datos tbody th{padding:7px 10px;border-top:1px solid var(--rule);text-align:center;font-size:14px}
+.datos tbody th{text-align:left}
+.escalones{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:0;padding:0;list-style:none}
+.escalones li{border-top:3px solid var(--accent);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.escalones b{font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-size:19px;line-height:1.2}
+.escalones span{color:var(--muted);font-size:14px}
+.glosario{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.pendientes{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;max-width:70ch}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--ground);font-size:13px;padding:6px 9px;border-radius:4px;max-width:260px;z-index:5}
+</style>
+<main>
+<header>
+  <p class="eyebrow">Grandeza · resultados deportivos · era profesional 1931–2026 · versión 0</p>
+  <h1>El orden exacto depende de cómo ponderes. Los escalones, no.</h1>
+  <p class="lead">Nadie sabe todavía cuántas ligas vale una Libertadores. Entonces, en vez de elegir un número, probamos 20.000 juegos de pesos distintos, sorteados dentro de rangos razonables, y miramos en qué puesto queda cada club en cada uno.</p>
+  <ul class="escalones">
+    <li><b>Boca y River</b><span>Siempre 1.º y 2.º. Cuál va primero depende de cuánto pese lo internacional.</span></li>
+    <li><b>Independiente</b><span>3.º en el 96% de los casos. Solo en su escalón.</span></li>
+    <li><b>Estudiantes, San Lorenzo, Vélez y Racing</b><span>Se reparten del 4.º al 7.º. Nunca salen de ahí, y el orden entre ellos es lo que de verdad está en discusión.</span></li>
+    <li><b>Del 8.º para abajo</b><span>Ningún otro club alcanza el 7.º puesto con ninguna ponderación probada.</span></li>
+  </ul>
+</header>
+
+<section>
+  <h2>En qué puesto queda cada club, según la ponderación</h2>
+  <p>Cada celda dice en qué porcentaje de las 20.000 ponderaciones el club quedó en ese puesto. Celda vacía: no pasó nunca. Las líneas gruesas marcan los cortes que ninguna ponderación cruzó.</p>
+  <div class="scroll"><table class='mapa'><thead><tr><th></th><th scope='col'>1.º</th><th scope='col'>2.º</th><th scope='col'>3.º</th><th scope='col'>4.º</th><th scope='col'>5.º</th><th scope='col'>6.º</th><th scope='col'>7.º</th><th scope='col'>8.º</th><th scope='col'>9.º</th><th scope='col'>10.º</th><th scope='col'>11.º</th><th scope='col'>12.º</th></tr></thead><tbody><tr><th scope='row'>Boca Juniors</th><td class='heat hot' style='--v:0.655' data-tip='Boca Juniors: 1.º en el 62% de las ponderaciones'>62</td><td class='heat' style='--v:0.445' data-tip='Boca Juniors: 2.º en el 38% de las ponderaciones'>38</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>River Plate</th><td class='heat' style='--v:0.445' data-tip='River Plate: 1.º en el 38% de las ponderaciones'>38</td><td class='heat hot' style='--v:0.619' data-tip='River Plate: 2.º en el 58% de las ponderaciones'>58</td><td class='heat' style='--v:0.136' data-tip='River Plate: 3.º en el 4% de las ponderaciones'>4</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>Independiente</th><td class='cero'></td><td class='heat' style='--v:0.136' data-tip='Independiente: 2.º en el 4% de las ponderaciones'>4</td><td class='heat hot' style='--v:0.964' data-tip='Independiente: 3.º en el 96% de las ponderaciones'>96</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr class='sep'><td colspan='13'></td></tr><tr><th scope='row'>Estudiantes (LP)</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat hot' style='--v:0.589' data-tip='Estudiantes (LP): 4.º en el 54% de las ponderaciones'>54</td><td class='heat' style='--v:0.191' data-tip='Estudiantes (LP): 5.º en el 10% de las ponderaciones'>10</td><td class='heat' style='--v:0.196' data-tip='Estudiantes (LP): 6.º en el 11% de las ponderaciones'>11</td><td class='heat' style='--v:0.324' data-tip='Estudiantes (LP): 7.º en el 25% de las ponderaciones'>25</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>San Lorenzo</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.379' data-tip='San Lorenzo: 4.º en el 31% de las ponderaciones'>31</td><td class='heat' style='--v:0.386' data-tip='San Lorenzo: 5.º en el 32% de las ponderaciones'>32</td><td class='heat' style='--v:0.200' data-tip='San Lorenzo: 6.º en el 11% de las ponderaciones'>11</td><td class='heat' style='--v:0.335' data-tip='San Lorenzo: 7.º en el 26% de las ponderaciones'>26</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>Vélez Sarsfield</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.204' data-tip='Vélez Sarsfield: 4.º en el 12% de las ponderaciones'>12</td><td class='heat' style='--v:0.472' data-tip='Vélez Sarsfield: 5.º en el 41% de las ponderaciones'>41</td><td class='heat' style='--v:0.440' data-tip='Vélez Sarsfield: 6.º en el 38% de las ponderaciones'>38</td><td class='heat' style='--v:0.184' data-tip='Vélez Sarsfield: 7.º en el 9% de las ponderaciones'>9</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>Racing Club</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.128' data-tip='Racing Club: 4.º en el 3% de las ponderaciones'>3</td><td class='heat' style='--v:0.251' data-tip='Racing Club: 5.º en el 17% de las ponderaciones'>17</td><td class='heat' style='--v:0.464' data-tip='Racing Club: 6.º en el 40% de las ponderaciones'>40</td><td class='heat' style='--v:0.457' data-tip='Racing Club: 7.º en el 40% de las ponderaciones'>40</td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td></tr><tr class='sep'><td colspan='13'></td></tr><tr><th scope='row'>Newell&#x27;s Old Boys</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat hot' style='--v:0.801' data-tip='Newell&#x27;s Old Boys: 8.º en el 78% de las ponderaciones'>78</td><td class='heat' style='--v:0.241' data-tip='Newell&#x27;s Old Boys: 9.º en el 16% de las ponderaciones'>16</td><td class='heat' style='--v:0.144' data-tip='Newell&#x27;s Old Boys: 10.º en el 5% de las ponderaciones'>5</td><td class='heat' style='--v:0.114' data-tip='Newell&#x27;s Old Boys: 11.º en el 2% de las ponderaciones'>2</td><td class='cero'></td></tr><tr><th scope='row'>Rosario Central</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.202' data-tip='Rosario Central: 8.º en el 11% de las ponderaciones'>11</td><td class='heat hot' style='--v:0.812' data-tip='Rosario Central: 9.º en el 79% de las ponderaciones'>79</td><td class='heat' style='--v:0.186' data-tip='Rosario Central: 10.º en el 10% de las ponderaciones'>10</td><td class='cero'></td><td class='cero'></td></tr><tr><th scope='row'>Argentinos Juniors</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.180' data-tip='Argentinos Juniors: 8.º en el 9% de las ponderaciones'>9</td><td class='heat' style='--v:0.128' data-tip='Argentinos Juniors: 9.º en el 3% de las ponderaciones'>3</td><td class='heat' style='--v:0.393' data-tip='Argentinos Juniors: 10.º en el 33% de las ponderaciones'>33</td><td class='heat' style='--v:0.321' data-tip='Argentinos Juniors: 11.º en el 25% de las ponderaciones'>25</td><td class='heat' style='--v:0.324' data-tip='Argentinos Juniors: 12.º en el 25% de las ponderaciones'>25</td></tr><tr><th scope='row'>Huracán</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.406' data-tip='Huracán: 10.º en el 34% de las ponderaciones'>34</td><td class='heat' style='--v:0.359' data-tip='Huracán: 11.º en el 29% de las ponderaciones'>29</td><td class='heat' style='--v:0.435' data-tip='Huracán: 12.º en el 37% de las ponderaciones'>37</td></tr><tr><th scope='row'>Lanús</th><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='cero'></td><td class='heat' style='--v:0.117' data-tip='Lanús: 8.º en el 2% de las ponderaciones'>2</td><td class='heat' style='--v:0.119' data-tip='Lanús: 9.º en el 2% de las ponderaciones'>2</td><td class='heat' style='--v:0.271' data-tip='Lanús: 10.º en el 19% de las ponderaciones'>19</td><td class='heat' style='--v:0.348' data-tip='Lanús: 11.º en el 28% de las ponderaciones'>28</td><td class='heat' style='--v:0.274' data-tip='Lanús: 12.º en el 19% de las ponderaciones'>19</td></tr></tbody></table></div>
+  <p class="nota">Ojo con leer de más: los porcentajes dependen de los rangos que elegí para sortear (tabla de abajo), que son una opinión mía y no una medición. Lo firme es lo que no cambia con ningún peso: las celdas vacías.</p>
+</section>
+
+<section>
+  <h2>Seis ponderaciones con nombre</h2>
+  <p>Lo mismo, pero con juegos de pesos concretos para poder discutirlos. «Riquelme» toma literal la idea de que una Libertadores vale diez torneos locales.</p>
+  <div class="scroll"><table class='datos'><thead><tr><th></th><th scope='col'>Conteo simple</th><th scope='col'>Solo ligas</th><th scope='col'>Moderado</th><th scope='col'>Riquelme (Lib = 10 ligas)</th><th scope='col'>Solo puntos históricos</th><th scope='col'>Moderado + regularidad</th></tr></thead><tbody><tr><th scope='row'>Boca Juniors</th><td>2.º</td><td>2.º</td><td>1.º</td><td>1.º</td><td>2.º</td><td>1.º</td></tr><tr><th scope='row'>River Plate</th><td>1.º</td><td>1.º</td><td>2.º</td><td>3.º</td><td>1.º</td><td>2.º</td></tr><tr><th scope='row'>Independiente</th><td>3.º</td><td>3.º</td><td>3.º</td><td>2.º</td><td>3.º</td><td>3.º</td></tr><tr><th scope='row'>Vélez Sarsfield</th><td>5.º</td><td>5.º</td><td>5.º</td><td>6.º</td><td>5.º</td><td>6.º</td></tr><tr><th scope='row'>Estudiantes (LP)</th><td>6.º</td><td>7.º</td><td>4.º</td><td>4.º</td><td>7.º</td><td>4.º</td></tr><tr><th scope='row'>San Lorenzo</th><td>7.º</td><td>4.º</td><td>7.º</td><td>7.º</td><td>4.º</td><td>5.º</td></tr><tr><th scope='row'>Racing Club</th><td>4.º</td><td>6.º</td><td>6.º</td><td>5.º</td><td>6.º</td><td>7.º</td></tr><tr><th scope='row'>Rosario Central</th><td>9.º</td><td>9.º</td><td>9.º</td><td>10.º</td><td>9.º</td><td>9.º</td></tr><tr><th scope='row'>Newell&#x27;s Old Boys</th><td>10.º</td><td>7.º</td><td>11.º</td><td>11.º</td><td>8.º</td><td>8.º</td></tr><tr><th scope='row'>Lanús</th><td>8.º</td><td>11.º</td><td>8.º</td><td>9.º</td><td>13.º</td><td>11.º</td></tr><tr><th scope='row'>Argentinos Juniors</th><td>12.º</td><td>10.º</td><td>10.º</td><td>8.º</td><td>12.º</td><td>10.º</td></tr><tr><th scope='row'>Huracán</th><td>11.º</td><td>13.º</td><td>13.º</td><td>15.º</td><td>11.º</td><td>12.º</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>Los pesos usados</h2>
+  <p>Todo se mide en ligas: cada número dice cuántas ligas vale un título de esa categoría. La última columna va al revés: cuántos puntos de la tabla histórica hacen falta para igualar una liga.</p>
+  <div class="scroll"><table class='datos'><thead><tr><th></th><th scope='col'>Ligas</th><th scope='col'>Copas nacionales</th><th scope='col'>Libertadores</th><th scope='col'>Intercontinental</th><th scope='col'>Conmebol 2.ª línea</th><th scope='col'>Supercopas internac.</th><th scope='col'>Rioplatenses</th><th scope='col'>Puntos históricos que equivalen a una liga</th></tr></thead><tbody><tr><th scope='row'>Conteo simple</th><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>—</td></tr><tr><th scope='row'>Solo ligas</th><td>1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><th scope='row'>Moderado</th><td>1</td><td>0,4</td><td>3</td><td>3</td><td>1,2</td><td>0,5</td><td>0,4</td><td>—</td></tr><tr><th scope='row'>Riquelme (Lib = 10 ligas)</th><td>1</td><td>0,4</td><td>10</td><td>10</td><td>3</td><td>1</td><td>0,4</td><td>—</td></tr><tr><th scope='row'>Solo puntos históricos</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>único criterio</td></tr><tr><th scope='row'>Moderado + regularidad</th><td>1</td><td>0,4</td><td>3</td><td>3</td><td>1,2</td><td>0,5</td><td>0,4</td><td>150</td></tr><tr class='corte'><th scope='row'>Sorteo al azar (rango)</th><td>1 (fijo)</td><td>0,1 a 1</td><td>1 a 10</td><td>0,5 a 10</td><td>0,3 a 3</td><td>0,1 a 1,5</td><td>0,1 a 1</td><td>50 a 500</td></tr></tbody></table></div>
+  <ul class='glosario'><li><b>Copas nacionales</b>: Copa Argentina, Supercopa, Trofeo de Campeones, Copa de la Liga y las copas viejas de AFA.</li><li><b>Intercontinental</b>: el título mundial de clubes.</li><li><b>Conmebol 2.ª línea</b>: Sudamericana, Supercopa Sudamericana, Conmebol, Mercosur.</li><li><b>Supercopas internac.</b>: Recopa, Interamericana, Suruga Bank, Máster, Nicolás Leoz.</li><li><b>Rioplatenses</b>: Copa Aldao y Escobar-Gerona, contra el campeón uruguayo.</li><li><b>Puntos históricos que equivalen a una liga</b>: tabla histórica de Primera, recalculada con 3 puntos por victoria.</li></ul>
+</section>
+
+<section>
+  <h2>Los datos de base</h2>
+  <p>Títulos oficiales de la era profesional por categoría, y puntos históricos de Primera. Son 300 títulos, uno por fila en la planilla, con año y subcampeón.</p>
+  <div class="scroll"><table class='datos'><thead><tr><th></th><th scope='col'>Ligas</th><th scope='col'>Copas nacionales</th><th scope='col'>Libertadores</th><th scope='col'>Intercontinental</th><th scope='col'>Conmebol 2.ª línea</th><th scope='col'>Supercopas internac.</th><th scope='col'>Rioplatenses</th><th scope='col'>Puntos históricos</th></tr></thead><tbody><tr><th scope='row'>Boca Juniors</th><td>29</td><td>11</td><td>6</td><td>3</td><td>3</td><td>6</td><td>2</td><td>6.069</td></tr><tr><th scope='row'>River Plate</th><td>37</td><td>15</td><td>4</td><td>1</td><td>2</td><td>5</td><td>5</td><td>6.282</td></tr><tr><th scope='row'>Independiente</th><td>14</td><td>3</td><td>7</td><td>2</td><td>4</td><td>5</td><td>2</td><td>5.456</td></tr><tr><th scope='row'>Estudiantes (LP)</th><td>6</td><td>6</td><td>4</td><td>1</td><td>—</td><td>1</td><td>—</td><td>4.816</td></tr><tr><th scope='row'>San Lorenzo</th><td>12</td><td>2</td><td>1</td><td>—</td><td>2</td><td>—</td><td>—</td><td>5.443</td></tr><tr><th scope='row'>Vélez Sarsfield</th><td>11</td><td>3</td><td>1</td><td>1</td><td>1</td><td>2</td><td>—</td><td>5.043</td></tr><tr><th scope='row'>Racing Club</th><td>9</td><td>6</td><td>1</td><td>1</td><td>2</td><td>1</td><td>—</td><td>4.951</td></tr><tr><th scope='row'>Newell&#x27;s Old Boys</th><td>6</td><td>1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>4.245</td></tr><tr><th scope='row'>Rosario Central</th><td>5</td><td>2</td><td>—</td><td>—</td><td>1</td><td>—</td><td>—</td><td>4.019</td></tr><tr><th scope='row'>Argentinos Juniors</th><td>3</td><td>—</td><td>1</td><td>—</td><td>—</td><td>1</td><td>—</td><td>3.291</td></tr><tr><th scope='row'>Huracán</th><td>1</td><td>5</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>3.760</td></tr><tr><th scope='row'>Lanús</th><td>2</td><td>3</td><td>—</td><td>—</td><td>3</td><td>1</td><td>—</td><td>3.127</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>Lo que todavía está flojo</h2>
+  <ul class="pendientes">
+    <li><b>Los puntos históricos son aproximados.</b> La tabla de Wikipedia para la era profesional quedó congelada en 2020 y la total está actualizada de forma despareja entre clubes. El error estimado es de hasta un 3%. La solución es reconstruirla temporada por temporada.</li>
+    <li><b>Sólo cuentan títulos y puntos.</b> No entran subcampeonatos, finales perdidas, descensos ni años en Primera.</li>
+    <li><b>Un título de 1935 vale igual que uno de 2024.</b> No hay ningún ajuste por época ni por dificultad del torneo.</li>
+    <li><b>Queda afuera el amateurismo</b> (antes de 1931), por decisión para esta primera versión. Es lo que más cambia para Racing.</li>
+    <li><b>Casos discutibles de clasificación:</b> la Copa de Oro 1936 de River figura como liga (según el listado de campeones) aunque otras fuentes la cuentan como copa.</li>
+  </ul>
+  <p class="nota">Fuentes: Wikipedia en español (campeones de Primera División, copas nacionales, títulos internacionales de clubes argentinos, campeonatos rioplatenses, clasificación histórica), con los totales de títulos verificados club por club contra su cuadro resumen.</p>
+</section>
+</main>
+<div id="tip" hidden></div>
+<script>
+const tip=document.getElementById('tip');
+document.querySelectorAll('[data-tip]').forEach(td=>{
+  td.addEventListener('mousemove',e=>{tip.textContent=td.dataset.tip;tip.hidden=false;
+    const x=Math.min(e.clientX+14,innerWidth-270);tip.style.left=x+'px';tip.style.top=(e.clientY+16)+'px';});
+  td.addEventListener('mouseleave',()=>{tip.hidden=true;});
+});
+</script>
