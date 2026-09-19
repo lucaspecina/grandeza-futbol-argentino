@@ -1,0 +1,434 @@
+"""Genera reports/calculadora.html: tabla interactiva donde se elige cuántas ligas vale cada competencia."""
+import json
+from html import escape
+from pathlib import Path
+
+import pandas as pd
+
+from ranking import CATEGORIAS, N_SORTEOS
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "data" / "processed"
+OUT = ROOT / "reports"
+
+TEMPLATE = r"""<title>Ranking histórico de rendimiento deportivo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#f5f8fc; --surface:#ffffff; --ink:#13202f; --muted:#56687c; --rule:#d9e2ec; --accent:#1c5cab; --on-accent:#ffffff; --track:#e6edf5; --tint:#c3d9f3;
+  --s-liga:#2a78d6; --s-copa:#eb6834; --s-int:#1baf7a; --s-pts:#eda100;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0e141b; --surface:#151d27; --ink:#e7eef6; --muted:#93a4b7; --rule:#26323f; --accent:#86b6ef; --on-accent:#0e141b; --track:#1f2a37; --tint:#2a4666;
+    --s-liga:#3987e5; --s-copa:#d95926; --s-int:#199e70; --s-pts:#c98500;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0e141b; --surface:#151d27; --ink:#e7eef6; --muted:#93a4b7; --rule:#26323f; --accent:#86b6ef; --on-accent:#0e141b; --track:#1f2a37; --tint:#2a4666;
+  --s-liga:#3987e5; --s-copa:#d95926; --s-int:#199e70; --s-pts:#c98500;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;padding-inline:20px;padding-block:32px 0}
+.pagina{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+header{display:flex;flex-direction:column;gap:10px}
+h1,h2,.eyebrow,.chip,.club,.pos,.puntaje{font-family:"Archivo Narrow","Arial Narrow",sans-serif}
+.eyebrow{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0}
+h1{font-size:clamp(28px,4.6vw,42px);line-height:1.08;margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:19px;line-height:1.2;margin:0;font-weight:700}
+p{margin:0;max-width:68ch}
+.lead{font-size:17px}
+.nota{color:var(--muted);font-size:13px}
+
+.contexto{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px 32px;border-block:1px solid var(--rule);padding-block:22px}
+.contexto div{display:flex;flex-direction:column;gap:6px}
+.contexto h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.herramienta,.intro-herramienta,.texto{display:flex;flex-direction:column;gap:14px}
+.herramienta{gap:16px}
+.ejemplo{border-left:3px solid var(--accent);padding:2px 0 2px 14px;color:var(--muted)}
+.ejemplo b{color:var(--ink);font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-size:16px}
+h2.grande{font-size:26px}
+.version-desc{color:var(--muted);min-height:3em;margin-top:-6px}
+.hallazgos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:0;padding:0;list-style:none}
+.hallazgos li{border-top:3px solid var(--accent);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.hallazgos b{font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-size:18px;line-height:1.2}
+.hallazgos span{color:var(--muted);font-size:14px}
+.formula{font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-size:17px;font-weight:600;background:var(--ground);border:1px solid var(--rule);border-radius:6px;padding:12px 16px;max-width:none}
+.metodo{display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px 24px;margin:0;max-width:900px}
+.metodo dt{font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-weight:700;font-size:16px}
+.metodo dd{margin:0;color:var(--muted)}
+.metodo a{color:var(--accent)}
+.analisis{margin:72px -20px 0;padding:56px 20px 80px;background:var(--surface);border-top:4px solid var(--ink)}
+.top10{display:flex;flex-direction:column;max-width:900px}
+.t10-fila{display:grid;grid-template-columns:34px 170px minmax(0,1fr) 74px;grid-template-areas:"pos club rango prom";gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--rule)}
+.t10-fila.corte{border-top:2px solid var(--ink)}
+.t10-cab{border-top:none;color:var(--muted);font-size:12px;align-items:end;padding-bottom:4px}
+.t10-cab .prom{font-family:inherit;font-size:12px;font-weight:400;line-height:1.2}
+.t10-fila .pos{grid-area:pos} .t10-fila .club{grid-area:club}
+.prom{grid-area:prom;text-align:right;font-family:"Archivo Narrow","Arial Narrow",sans-serif;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.rango,.eje{grid-area:rango;position:relative;height:18px;margin-inline:10px}
+.rango{background-image:linear-gradient(to right,var(--rule) 1px,transparent 1px);background-size:calc(100% / var(--n)) 100%;border-right:1px solid var(--rule)}
+.rango .tramo{position:absolute;top:6px;height:6px;min-width:6px;border-radius:3px;background:var(--tint)}
+.rango .medio{position:absolute;top:3px;width:12px;height:12px;border-radius:50%;background:var(--accent);transform:translateX(-50%);box-shadow:0 0 0 2px var(--surface)}
+.eje span{position:absolute;bottom:0;transform:translateX(-50%);font-variant-numeric:tabular-nums;white-space:nowrap}
+.versiones{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font-size:15px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chip:focus-visible,.fila:focus-visible,.mas:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.personal{color:var(--muted);font-size:13px}
+
+.cuerpo{display:grid;grid-template-columns:330px minmax(0,1fr);gap:28px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
+.control{display:flex;flex-direction:column;gap:3px}
+.control .cab{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.control label{font-weight:600}
+.control output{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600;white-space:nowrap}
+.control small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.control input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.punto{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.unidad{display:flex;gap:8px;align-items:center}
+.unidad input{accent-color:var(--accent);width:16px;height:16px}
+hr{border:none;border-top:1px solid var(--rule);margin:0;width:100%}
+
+.tabla{display:flex;flex-direction:column;gap:12px;min-width:0}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:0;padding:0;list-style:none}
+ol.ranking{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+ol.ranking li{border-top:1px solid var(--rule);background:var(--surface)}
+ol.ranking li:first-child{border-top:none}
+.fila{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:34px 40px 170px minmax(0,1fr) 62px;grid-template-areas:"pos delta club barra puntaje";gap:10px;align-items:center;padding:9px 14px}
+.fila:hover{background:var(--ground)}
+.pos{grid-area:pos;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.delta{grid-area:delta;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.club{grid-area:club;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barra{grid-area:barra;display:flex;gap:2px;height:14px;min-width:0}
+.seg{height:100%;flex:0 0 auto;border-radius:0;transition:width .25s ease;min-width:0}
+.seg.ultimo{border-radius:0 4px 4px 0}
+.seg.liga{background:var(--s-liga)} .seg.copa{background:var(--s-copa)} .seg.int{background:var(--s-int)} .seg.pts{background:var(--s-pts)}
+.punto.liga{background:var(--s-liga)} .punto.copa{background:var(--s-copa)} .punto.int{background:var(--s-int)} .punto.pts{background:var(--s-pts)}
+.puntaje{grid-area:puntaje;text-align:right;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.detalle{padding:4px 14px 14px 98px;font-size:13px;color:var(--muted);display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:3px 18px;font-variant-numeric:tabular-nums}
+.detalle[hidden]{display:none}
+.detalle b{color:var(--ink);font-weight:600}
+.mas{align-self:flex-start;font:inherit;font-size:14px;color:var(--accent);background:none;border:none;padding:4px 0;cursor:pointer;text-decoration:underline}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--ground);font-size:12.5px;padding:6px 9px;border-radius:4px;max-width:280px;z-index:5}
+
+@media (max-width:860px){
+  .cuerpo{grid-template-columns:minmax(0,1fr)}
+  .panel{position:static}
+}
+@media (max-width:560px){
+  .t10-fila{grid-template-columns:30px minmax(0,1fr) 60px;grid-template-areas:"pos club prom" "rango rango rango";row-gap:6px}
+  .eje span:nth-child(even){display:none}
+  .metodo{grid-template-columns:minmax(0,1fr);gap:2px}
+  .metodo dd{margin-bottom:12px}
+  .fila{grid-template-columns:30px 38px minmax(0,1fr) 56px;grid-template-areas:"pos delta club puntaje" "barra barra barra barra";row-gap:6px}
+  .detalle{padding-left:14px}
+}
+@media (prefers-reduced-motion: reduce){ .seg{transition:none} }
+</style>
+
+<div class="pagina">
+<header>
+  <p class="eyebrow">Fútbol argentino · era profesional 1931–2026</p>
+  <h1>Ranking histórico de rendimiento deportivo de los clubes argentinos</h1>
+  <p class="lead">Mide sólo rendimiento deportivo: títulos oficiales y puntos en Primera División. Es un análisis de sensibilidad: cómo cambia el orden de los clubes según el valor que se le asigne a cada competencia, y qué parte del ranking se mantiene con cualquier criterio.</p>
+</header>
+
+<section class="contexto" aria-label="De qué se trata">
+  <div><h2>El debate</h2><p>En Argentina se llama «los cinco grandes» a Boca Juniors, River Plate, Independiente, Racing y San Lorenzo. La denominación viene de la década de 1930 y hoy se discute: clubes como Estudiantes de La Plata o Vélez Sarsfield acumularon títulos que, para muchos, los ponen a la par.</p></div>
+  <div><h2>El problema</h2><p>Comparar palmarés contando títulos supone que todos valen lo mismo. Pocos dirían que una Supercopa Argentina equivale a una Copa Libertadores. Pero cuánto vale exactamente cada una es una opinión, no un dato.</p></div>
+  <div><h2>El enfoque</h2><p>En lugar de fijar una ponderación, esta página permite elegirla y muestra cómo responde el ranking. Así se separan las conclusiones que dependen de los pesos de las que se sostienen con cualquiera.</p></div>
+</section>
+
+<section class="herramienta">
+<div class="intro-herramienta">
+  <p class="eyebrow">Herramienta interactiva</p>
+  <h2 class="grande">Ranking según la ponderación elegida</h2>
+  <p>El puntaje de cada club se mide en ligas: un campeonato de Primera División vale 1, y los controles definen cuántas ligas vale un título de cada otra competencia. Se puede partir de una de las ponderaciones predefinidas y ajustarla.</p>
+  <p class="ejemplo"><b>Ejemplo.</b> Si a la Copa Libertadores se le asigna un valor de 5 ligas, se está diciendo que ganar una Libertadores equivale a ganar cinco campeonatos de Primera División. Con ese criterio, las __EJ_LIB__ Libertadores de Independiente pasan a valer __EJ_LIB_X5__ puntos, casi lo mismo que las __EJ_LIGAS__ ligas de River Plate (__EJ_LIGAS__ puntos). Si en cambio valiera 1, una Libertadores contaría igual que cualquier campeonato local.</p>
+</div>
+
+<div class="versiones" id="versiones" role="group" aria-label="Ponderaciones predefinidas"></div>
+<p class="version-desc" id="version-desc" aria-live="polite"></p>
+
+<div class="cuerpo">
+  <aside class="panel" id="panel" aria-label="Cuánto vale cada competencia"></aside>
+  <section class="tabla">
+    <ul class="leyenda">
+      <li><span class="punto liga"></span>Ligas</li>
+      <li><span class="punto copa"></span>Copas nacionales</li>
+      <li><span class="punto int"></span>Internacionales</li>
+      <li><span class="punto pts"></span>Puntos históricos</li>
+    </ul>
+    <ol class="ranking" id="ranking"></ol>
+    <button class="mas" id="mas" type="button"></button>
+    <p class="nota">La flecha indica cuántos puestos sube o baja el club respecto del conteo simple, en el que todos los títulos valen lo mismo. Al seleccionar un club se despliega el cálculo de su puntaje.</p>
+  </section>
+</div>
+</section>
+</div>
+
+<div class="analisis">
+<div class="pagina">
+<section class="texto">
+  <p class="eyebrow">Análisis de robustez</p>
+  <h2 class="grande">Lo que no depende de la ponderación</h2>
+  <p>La tabla de arriba muestra un ranking por cada ponderación que se elija. Para distinguir lo firme de lo opinable se sortearon __N_SORTEOS__ ponderaciones al azar dentro de rangos amplios (por ejemplo, la Copa Libertadores entre 1 y 10 ligas) y se registró el puesto de cada club en cada una. Ordenados por su puesto promedio, estos son los diez primeros:</p>
+__TOP10__
+  <p class="nota">El punto marca el puesto promedio del club en las __N_SORTEOS__ ponderaciones; la barra, el mejor y el peor puesto que alcanzó. Las líneas gruesas separan grupos que ninguna ponderación llegó a mezclar.</p>
+  <ul class="hallazgos">
+    <li><b>Boca Juniors y River Plate</b><span>Ocupan los dos primeros puestos en el __PCT_TOP2__% de las ponderaciones. Cuál queda primero depende del peso de lo internacional.</span></li>
+    <li><b>Independiente</b><span>Tercero en el __PCT_INDEP__% de los casos; nunca por debajo de ese puesto.</span></li>
+    <li><b>Estudiantes, San Lorenzo, Vélez y Racing</b><span>Se reparten del 4.º al 7.º puesto en todas las ponderaciones. El orden entre ellos es lo que realmente depende del criterio.</span></li>
+    <li><b>El resto</b><span>Ningún otro club alcanzó el 7.º puesto con ninguna de las ponderaciones sorteadas.</span></li>
+  </ul>
+  <p>Con resultados deportivos de la era profesional, entonces, la evidencia no respalda un grupo de cinco: muestra dos clubes, luego uno, y luego un grupo de cuatro con diferencias internas que dependen de cómo se pondere.</p>
+</section>
+
+<section class="texto">
+  <h2 class="grande">Metodología y datos</h2>
+  <p class="formula">Puntaje = Σ (títulos en cada categoría × peso de la categoría) + (puntos históricos ÷ 100) × peso de los puntos</p>
+  <dl class="metodo">
+    <dt>Títulos</dt><dd>__N_TITULOS__ títulos oficiales de primera categoría entre 1931 y 2026, registrados uno por uno con año y subcampeón: campeonatos de Primera División, copas nacionales de AFA, torneos de Conmebol y FIFA, y copas rioplatenses. Los totales se verificaron club por club contra los cuadros resumen de la fuente.</dd>
+    <dt>Categorías</dt><dd>Los títulos internacionales se agrupan en cuatro niveles: Copa Libertadores; Copa Intercontinental; segunda línea de Conmebol (Sudamericana, Supercopa Sudamericana, Copa Conmebol, Mercosur); y supercopas a partido único o minitorneo (Recopa, Interamericana, Suruga Bank, Máster, Nicolás Leoz).</dd>
+    <dt>Puntos históricos</dt><dd>Partidos de Primera División desde 1931, con los puntos recalculados para todas las épocas con 3 por victoria y 1 por empate. La fuente está actualizada de forma despareja entre clubes, por lo que se estima un error de hasta 3%.</dd>
+    <dt>Ponderaciones al azar</dt><dd>Cada peso se sorteó en escala logarítmica dentro de su rango: copas nacionales y rioplatenses, 0,1 a 1 liga; Libertadores, 1 a 10; Intercontinental, 0,5 a 10; segunda línea Conmebol, 0,3 a 3 (nunca más que la Libertadores); supercopas internacionales, 0,1 a 1,5; y entre 50 y 500 puntos históricos por liga. Los porcentajes dependen de esos rangos; lo que no ocurre en ningún sorteo, no.</dd>
+    <dt>Limitaciones</dt><dd>No se consideran subcampeonatos, finales perdidas ni descensos. Un título de 1935 vale lo mismo que uno de 2024. Queda fuera el amateurismo (1891–1930), lo que afecta sobre todo a Racing. La Copa de Oro de 1936 se cuenta como campeonato de liga, criterio en el que las fuentes no coinciden. Esta página mide sólo resultados deportivos: otras dimensiones de la grandeza, como la cantidad de socios o de hinchas, no están incluidas.</dd>
+    <dt>Fuentes</dt><dd>Wikipedia en español (campeones de Primera División, copas nacionales del fútbol argentino, clubes argentinos ganadores de competiciones internacionales, campeonatos rioplatenses, clasificación histórica de Primera División), con datos de RSSSF y AFA. Datos actualizados a septiembre de 2026.</dd>
+    <dt>Código y datos</dt><dd>Abiertos y reproducibles: <a href="https://github.com/lucaspecina/grandeza-futbol-argentino">github.com/lucaspecina/grandeza-futbol-argentino</a>.</dd>
+  </dl>
+</section>
+</div>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const DATA = __DATA__;
+const CATS = [
+  {id:'copa_nacional', nombre:'Copa nacional', grupo:'copa', det:'Copa Argentina, Supercopa, Trofeo de Campeones, Copa de la Liga y las copas viejas de AFA', plural:'copas nacionales', singular:'copa nacional'},
+  {id:'libertadores', nombre:'Copa Libertadores', grupo:'int', det:'', plural:'Libertadores', singular:'Libertadores'},
+  {id:'intercontinental', nombre:'Intercontinental', grupo:'int', det:'El título mundial de clubes', plural:'Intercontinentales', singular:'Intercontinental'},
+  {id:'conmebol_2da', nombre:'Conmebol, segunda línea', grupo:'int', det:'Sudamericana, Supercopa Sudamericana, Conmebol, Mercosur', plural:'de segunda línea Conmebol', singular:'de segunda línea Conmebol'},
+  {id:'supercopa_int', nombre:'Supercopas internacionales', grupo:'int', det:'Recopa, Interamericana, Suruga Bank, Máster, Nicolás Leoz', plural:'supercopas internacionales', singular:'supercopa internacional'},
+  {id:'rioplatense', nombre:'Copas rioplatenses', grupo:'int', det:'Copa Aldao y Escobar-Gerona, contra el campeón uruguayo', plural:'rioplatenses', singular:'rioplatense'},
+];
+const GRUPOS = [['liga','Ligas'],['copa','Copas nacionales'],['int','Internacionales'],['pts','Puntos históricos']];
+const base = o => Object.assign({liga:1,copa_nacional:0,libertadores:0,intercontinental:0,conmebol_2da:0,supercopa_int:0,rioplatense:0,pts100:0}, o);
+const VERSIONES = [
+  ['Conteo simple', base({copa_nacional:1,libertadores:1,intercontinental:1,conmebol_2da:1,supercopa_int:1,rioplatense:1}),
+   'Cada título oficial vale lo mismo, sea una liga, una copa nacional o una Copa Libertadores. Es la forma habitual de comparar palmarés y el punto de partida de este análisis.'],
+  ['Solo ligas', base({}),
+   'Cuenta únicamente los campeonatos de Primera División e ignora las copas nacionales e internacionales.'],
+  ['Ponderación moderada', base({copa_nacional:.4,libertadores:3,intercontinental:3,conmebol_2da:1.2,supercopa_int:.5,rioplatense:.4}),
+   'Un juego de pesos intermedio, a modo de ejemplo: la Libertadores y la Intercontinental valen 3 ligas; los torneos Conmebol de segunda línea, 1,2; las supercopas internacionales, 0,5; las copas nacionales y rioplatenses, 0,4.'],
+  ['Libertadores = 10 ligas', base({copa_nacional:.4,libertadores:10,intercontinental:10,conmebol_2da:3,supercopa_int:1,rioplatense:.4}),
+   'Toma al pie de la letra una frase de Juan Román Riquelme, ídolo y luego presidente de Boca Juniors, quien en 2015 sostuvo que «una Libertadores vale diez torneos locales». Es el extremo que más premia lo internacional.'],
+  ['Moderada + regularidad', base({copa_nacional:.4,libertadores:3,intercontinental:3,conmebol_2da:1.2,supercopa_int:.5,rioplatense:.4,pts100:.65}),
+   'La ponderación moderada más un premio a la regularidad: cada 100 puntos acumulados en la tabla histórica de Primera División equivalen a 0,65 ligas (unos 150 puntos por liga).'],
+  ['Solo puntos históricos', base({liga:0,pts100:1}),
+   'Ignora los títulos y ordena por puntos acumulados en Primera División desde 1931. Mide permanencia y regularidad, no consagraciones.'],
+];
+const CLAVE = 'grandeza-calculadora-v1';
+const fmt = (x,d=1) => x.toLocaleString('es-AR',{maximumFractionDigits:d});
+const ligas = x => x === 1 ? '1 liga' : fmt(x,2) + ' ligas';
+const reducir = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function calcular(w){
+  const filas = DATA.map(c => {
+    const g = {liga: c.liga * w.liga, copa: 0, int: 0, pts: c.pts * w.pts100 / 100};
+    for (const k of CATS) g[k.grupo] += c[k.id] * w[k.id];
+    return {c, g, total: g.liga + g.copa + g.int + g.pts};
+  }).sort((a,b) => b.total - a.total || a.c.club.localeCompare(b.c.club));
+  filas.forEach((f,i) => { f.pos = (i && filas[i-1].total === f.total) ? filas[i-1].pos : i + 1; });
+  return filas;
+}
+
+let w = Object.assign({}, VERSIONES[0][1]);
+try { const g = JSON.parse(localStorage.getItem(CLAVE)); if (g && typeof g === 'object') for (const k in w) if (typeof g[k] === 'number') w[k] = g[k]; } catch(e){}
+let verTodos = false;
+const LIMITE = 15;
+const posBase = new Map(calcular(VERSIONES[0][1]).map(f => [f.c.club, f.pos]));
+
+/* ---- versiones ---- */
+const $ver = document.getElementById('versiones');
+VERSIONES.forEach(([nombre, pesos], i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.id = 'version-' + i; b.textContent = nombre;
+  b.addEventListener('click', () => { w = Object.assign({}, pesos); sincronizarControles(); render(); });
+  $ver.append(b);
+});
+const $personal = document.createElement('span'); $personal.className = 'personal'; $ver.append($personal);
+
+/* ---- controles ---- */
+const $panel = document.getElementById('panel');
+$panel.innerHTML = `<h2>Valor de cada título, en ligas</h2>
+  <div class="control"><div class="cab"><label class="unidad" for="w-liga"><input type="checkbox" id="w-liga"><span><span class="punto liga"></span>Liga</span></label><output id="o-liga"></output></div>
+  <small>Campeonato de Primera División. Es la unidad de medida: vale siempre 1, y se puede excluir del cálculo.</small></div>` +
+  CATS.map(k => `<div class="control"><div class="cab"><label for="w-${k.id}"><span class="punto ${k.grupo}"></span>${k.nombre}</label><output id="o-${k.id}" for="w-${k.id}"></output></div>
+  <input type="range" id="w-${k.id}" min="0" max="10" step="0.1">${k.det ? `<small>${k.det}</small>` : ''}</div>`).join('') +
+  `<hr><div class="control"><div class="cab"><label for="w-pts100"><span class="punto pts"></span>Cada 100 puntos históricos</label><output id="o-pts100" for="w-pts100"></output></div>
+  <input type="range" id="w-pts100" min="0" max="2" step="0.05">
+  <small>Puntos acumulados en Primera División desde 1931, con 3 por victoria. River Plate, el que más tiene, suma 6.282; una buena temporada aporta entre 60 y 75.</small></div>`;
+
+function sincronizarControles(){
+  document.getElementById('w-liga').checked = w.liga > 0;
+  for (const k of [...CATS.map(c => c.id), 'pts100']) document.getElementById('w-' + k).value = w[k];
+}
+$panel.addEventListener('input', e => {
+  const id = e.target.id.slice(2);
+  w[id] = e.target.type === 'checkbox' ? (e.target.checked ? 1 : 0) : Number(e.target.value);
+  render();
+});
+
+/* ---- tabla ---- */
+const $rk = document.getElementById('ranking');
+const filasDom = new Map();
+for (const c of DATA){
+  const li = document.createElement('li');
+  li.innerHTML = `<button class="fila" type="button" aria-expanded="false"><span class="pos"></span><span class="delta"></span><span class="club"></span><span class="barra"></span><span class="puntaje"></span></button><div class="detalle" hidden></div>`;
+  li.querySelector('.club').textContent = c.club;
+  const barra = li.querySelector('.barra');
+  for (const [g] of GRUPOS){ const s = document.createElement('span'); s.className = 'seg ' + g; barra.append(s); }
+  const btn = li.querySelector('.fila'), det = li.querySelector('.detalle');
+  btn.addEventListener('click', () => { det.hidden = !det.hidden; btn.setAttribute('aria-expanded', String(!det.hidden)); });
+  filasDom.set(c.club, li);
+}
+
+function detalleHTML(f){
+  const c = f.c, partes = [];
+  if (c.liga && w.liga) partes.push(`<span><b>${c.liga}</b> ${c.liga === 1 ? 'liga' : 'ligas'} × 1 = <b>${fmt(c.liga)}</b></span>`);
+  for (const k of CATS) if (c[k.id] && w[k.id]) partes.push(`<span><b>${c[k.id]}</b> ${c[k.id] === 1 ? k.singular : k.plural} × ${fmt(w[k.id],2)} = <b>${fmt(c[k.id]*w[k.id])}</b></span>`);
+  if (c.pts && w.pts100) partes.push(`<span><b>${fmt(c.pts,0)}</b> puntos × ${fmt(w.pts100,2)}/100 = <b>${fmt(f.g.pts)}</b></span>`);
+  return partes.join('') || '<span>No suma nada con estos pesos.</span>';
+}
+
+function render(){
+  try { localStorage.setItem(CLAVE, JSON.stringify(w)); } catch(e){}
+  const filas = calcular(w).filter(f => f.total > 0);
+  const max = filas.length ? filas[0].total : 1;
+  const visibles = verTodos ? filas : filas.slice(0, LIMITE);
+
+  const antes = new Map();
+  filasDom.forEach((li, club) => { if (li.isConnected) antes.set(club, li.getBoundingClientRect().top); });
+
+  $rk.replaceChildren(...visibles.map(f => {
+    const li = filasDom.get(f.c.club);
+    li.querySelector('.pos').textContent = f.pos + '.º';
+    const d = posBase.get(f.c.club) - f.pos, $d = li.querySelector('.delta');
+    $d.textContent = d > 0 ? '▲ ' + d : d < 0 ? '▼ ' + (-d) : '=';
+    $d.setAttribute('aria-label', d > 0 ? `sube ${d} puestos` : d < 0 ? `baja ${-d} puestos` : 'mismo puesto');
+    li.querySelector('.puntaje').textContent = fmt(f.total);
+    const segs = li.querySelectorAll('.seg'); let ultimo = null;
+    GRUPOS.forEach(([g, nombre], i) => {
+      const v = f.g[g], s = segs[i];
+      s.style.width = (v / max * 97) + '%'; s.style.display = v > 0 ? '' : 'none';
+      s.classList.remove('ultimo'); s.dataset.tip = `${f.c.club} · ${nombre}: ${ligas(Math.round(v*100)/100)}`;
+      if (v > 0) ultimo = s;
+    });
+    if (ultimo) ultimo.classList.add('ultimo');
+    li.querySelector('.detalle').innerHTML = detalleHTML(f);
+    return li;
+  }));
+
+  if (!reducir) visibles.forEach(f => {
+    const li = filasDom.get(f.c.club); if (!antes.has(f.c.club)) return;
+    const dy = antes.get(f.c.club) - li.getBoundingClientRect().top; if (!dy) return;
+    li.style.transition = 'none'; li.style.transform = `translateY(${dy}px)`; li.style.position = 'relative'; li.style.zIndex = dy > 0 ? 2 : 1;
+    requestAnimationFrame(() => { li.style.transition = 'transform .35s ease'; li.style.transform = ''; });
+  });
+
+  for (const k of CATS) document.getElementById('o-' + k.id).textContent = w[k.id] ? ligas(w[k.id]) : 'no cuenta';
+  document.getElementById('o-liga').textContent = w.liga ? '1 liga' : 'no cuenta';
+  document.getElementById('o-pts100').textContent = w.pts100 ? ligas(w.pts100) : 'no cuentan';
+  let activa = null;
+  VERSIONES.forEach(([, pesos, desc], i) => {
+    const igual = Object.keys(pesos).every(k => Math.abs(pesos[k] - w[k]) < 1e-9);
+    document.getElementById('version-' + i).setAttribute('aria-pressed', String(igual)); if (igual) activa = desc;
+  });
+  $personal.textContent = activa ? '' : 'Ponderación personalizada';
+  document.getElementById('version-desc').textContent = activa || 'Los pesos fueron ajustados a mano y no coinciden con ninguna de las ponderaciones predefinidas.';
+  const $mas = document.getElementById('mas');
+  $mas.hidden = filas.length <= LIMITE;
+  $mas.textContent = verTodos ? `Ver solo los primeros ${LIMITE}` : `Ver los ${filas.length} clubes con puntaje`;
+}
+document.getElementById('mas').addEventListener('click', () => { verTodos = !verTodos; render(); });
+
+/* ---- tooltip ---- */
+const tip = document.getElementById('tip');
+document.addEventListener('mousemove', e => {
+  const s = e.target.closest ? e.target.closest('[data-tip]') : null; if (!s) { tip.hidden = true; return; }
+  tip.textContent = s.dataset.tip; tip.hidden = false;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 290) + 'px'; tip.style.top = (e.clientY + 16) + 'px';
+});
+document.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+sincronizarControles();
+render();
+</script>
+"""
+
+
+def top10_html(mc, cortes):
+    """Top 10 por puesto promedio en el sorteo, con el rango mejor-peor de cada club."""
+    top = mc.sort_values("pos_media").head(10)
+    pmax = int(top.pos_peor.max())
+    x = lambda p: f"{(p - 1) / (pmax - 1) * 100:.2f}%"
+    coma = lambda v: f"{v:.1f}".replace(".", ",")
+    eje = "".join(f"<span style='left:{x(p)}'>{p}.º</span>" for p in range(1, pmax + 1))
+    filas = [f"<div class='t10-fila t10-cab'><span class='eje'>{eje}</span><span class='prom'>Puesto promedio</span></div>"]
+    for i, (club, r) in enumerate(top.iterrows(), start=1):
+        mejor, peor = int(r.pos_mejor), int(r.pos_peor)
+        tip = f"{club}: puesto promedio {coma(r.pos_media)}; entre el {mejor}.º y el {peor}.º"
+        ancho = f"{(peor - mejor) / (pmax - 1) * 100:.2f}%"
+        clase = "t10-fila corte" if i in cortes else "t10-fila"
+        filas.append(
+            f"<div class='{clase}'><span class='pos'>{i}.º</span><span class='club'>{escape(club)}</span>"
+            f"<span class='rango' style='--n:{pmax - 1}' data-tip='{escape(tip, quote=True)}'>"
+            f"<i class='tramo' style='left:{x(mejor)};width:{ancho}'></i><i class='medio' style='left:{x(r.pos_media)}'></i></span>"
+            f"<span class='prom'>{coma(r.pos_media)}</span></div>")
+    return f"<div class='top10'>{''.join(filas)}</div>"
+
+
+def main():
+    titulos = pd.read_csv(DATA / "titulos.csv")
+    conteo = titulos.pivot_table(index="club", columns="categoria", values="anio", aggfunc="count", fill_value=0)
+    puntos = pd.read_csv(DATA / "tabla_historica_profesional.csv", index_col="club").pts_3.rename("pts")
+    base = conteo.reindex(columns=CATEGORIAS, fill_value=0).join(puntos, how="outer").fillna(0).astype(int)
+    registros = [dict(club=club, **fila.to_dict()) for club, fila in base.iterrows()]
+    OUT.mkdir(exist_ok=True)
+    mc = pd.read_csv(DATA / "ranking_montecarlo.csv", index_col="club")
+    grupo = ["Estudiantes (LP)", "San Lorenzo", "Vélez Sarsfield", "Racing Club"]
+    # las afirmaciones del texto se verifican contra el sorteo antes de publicarlas
+    assert mc.loc[grupo, "pos_mejor"].min() == 4 and mc.loc[grupo, "pos_peor"].max() == 7
+    assert mc.drop(index=["Boca Juniors", "River Plate", "Independiente"] + grupo).pos_mejor.min() >= 8
+    assert mc.loc["Independiente", "pos_peor"] == 3
+    top2 = round(100 * min(mc.loc[c, "1"] + mc.loc[c, "2"] for c in ["Boca Juniors", "River Plate"]))
+    html = (TEMPLATE.replace("__DATA__", json.dumps(registros, ensure_ascii=False, separators=(",", ":")))
+            .replace("__TOP10__", top10_html(mc, cortes={4, 8}))  # cortes verificados por los assert de arriba
+            .replace("__N_SORTEOS__", f"{N_SORTEOS:,}".replace(",", "."))
+            .replace("__PCT_TOP2__", str(top2))
+            .replace("__PCT_INDEP__", str(round(100 * mc.loc["Independiente", "3"])))
+            .replace("__N_TITULOS__", str(len(titulos)))
+            .replace("__EJ_LIB_X5__", str(5 * base.loc["Independiente", "libertadores"]))
+            .replace("__EJ_LIB__", str(base.loc["Independiente", "libertadores"]))
+            .replace("__EJ_LIGAS__", str(base.loc["River Plate", "liga"])))
+    (OUT / "calculadora.html").write_text(html, encoding="utf-8")  # fragmento, para publicar como artifact
+
+    # versión autónoma (documento HTML completo) para alojar en cualquier hosting estático
+    descripcion = "Cómo cambia el ranking histórico de rendimiento deportivo de los clubes del fútbol argentino según el valor que se le asigne a cada competencia."
+    cabeza, cuerpo = html.split("</style>", 1)
+    pagina = ('<!doctype html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n'
+              '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+              f'<meta name="description" content="{descripcion}">\n'
+              f'<meta property="og:title" content="Ranking histórico de rendimiento deportivo de los clubes argentinos">\n'
+              f'<meta property="og:description" content="{descripcion}">\n'
+              '<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n'
+              f'{cabeza}</style>\n</head>\n<body>{cuerpo}</body>\n</html>\n')
+    (ROOT / "docs").mkdir(exist_ok=True)
+    (ROOT / "docs" / "index.html").write_text(pagina, encoding="utf-8")
+    print(OUT / "calculadora.html", "y docs/index.html ·", len(registros), "clubes")
+
+
+if __name__ == "__main__":
+    main()
